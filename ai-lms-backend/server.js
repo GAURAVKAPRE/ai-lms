@@ -1,17 +1,27 @@
 // ================= LOAD ENV =================
-const dotenv = require("dotenv");
-dotenv.config();
+import "./config/env.js";
 
 // ================= IMPORTS =================
-const express = require("express");
-const cors = require("cors");
-const mongoose = require("mongoose");
+import express from "express";
+import cors from "cors";
+import mongoose from "mongoose";
 
-const connectDB = require("./config/db");
-const lectureProgressRoutes = require("./routes/lectureProgressRoutes");
+// ================= LOCAL IMPORTS =================
+import connectDB from "./config/db.js";
+
+import authRoutes from "./routes/authRoutes.js";
+import courseRoutes from "./routes/courseRoutes.js";
+import instructorRoutes from "./routes/instructorRoutes.js";
+
+import lectureProgressRoutes from "./routes/lectureProgressRoutes.js";
+import adviceRoutes from "./routes/adviceRoutes.js";
+import aiRoutes from "./routes/aiRoutes.js";
+import quizRoutes from "./routes/quizRoutes.js";
+import quizAttemptRoutes from "./routes/quizAttemptRoutes.js";
+import lectureRoutes from "./routes/lectureRoutes.js";
 
 // ================= CONNECT DB =================
-connectDB();
+await connectDB();
 
 // ================= INIT APP =================
 const app = express();
@@ -26,20 +36,19 @@ app.get("/", (req, res) => {
 });
 
 // ================= ROUTES =================
-app.use("/api/auth", require("./routes/authRoutes"));
-app.use("/api/courses", require("./routes/courseRoutes"));
-app.use("/api/instructor", require("./routes/instructorRoutes"));
-app.use("/api/admin", require("./routes/adminRoutes"));
+app.use("/api/auth", authRoutes);
+app.use("/api/courses", courseRoutes);
+app.use("/api/instructor", instructorRoutes);
 
 app.use("/api/progress", lectureProgressRoutes);
-app.use("/api/advice", require("./routes/adviceRoutes"));
-app.use("/api/ai", require("./routes/aiRoutes"));
+app.use("/api/advice", adviceRoutes);
+app.use("/api/ai", aiRoutes);
 
-app.use("/api/quizzes", require("./routes/quizRoutes"));
-app.use("/api/quiz-attempts", require("./routes/quizAttemptRoutes"));
+app.use("/api/quizzes", quizRoutes);
+app.use("/api/quiz-attempts", quizAttemptRoutes);
 
 // 🔥 Lecture routes
-app.use("/api", require("./routes/lectureRoutes"));
+app.use("/api", lectureRoutes);
 
 // ================= OPTIONAL TEST =================
 app.post("/api/test", (req, res) => {

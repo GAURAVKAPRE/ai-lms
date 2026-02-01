@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const lectureProgressSchema = new mongoose.Schema(
   {
@@ -20,25 +20,18 @@ const lectureProgressSchema = new mongoose.Schema(
       required: true,
     },
 
-    watchedPercent: {
-      type: Number,
-      default: 0, // 0–100
-    },
-
     completed: {
       type: Boolean,
       default: false,
-    },
-
-    timeSpent: {
-      type: Number, // in seconds
-      default: 0,
     },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model(
+// ✅ THIS WAS MISSING
+const LectureProgress = mongoose.model(
   "LectureProgress",
   lectureProgressSchema
 );
+
+export default LectureProgress;

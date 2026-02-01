@@ -7,7 +7,6 @@ import Dashboard from "./pages/Dashboard";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import InstructorCourse from "./pages/InstructorCourse";
 import CourseDetail from "./pages/CourseDetails";
-import QuizPage from "./pages/QuizPage"; // ✅ NEW
 import PrivateRoute from "./components/PrivateRoute";
 
 import "./app.css";
@@ -30,22 +29,12 @@ function App() {
           }
         />
 
-        {/* Course Detail (Student View / Enroll / Content) */}
+        {/* Course Detail (Student View / Lectures / AI Quiz Modal) */}
         <Route
           path="/courses/:id"
           element={
             <PrivateRoute>
               <CourseDetail />
-            </PrivateRoute>
-          }
-        />
-
-        {/* 🔥 QUIZ PAGE (Student) */}
-        <Route
-          path="/quiz/:quizId"
-          element={
-            <PrivateRoute>
-              <QuizPage />
             </PrivateRoute>
           }
         />
@@ -60,7 +49,7 @@ function App() {
           }
         />
 
-        {/* Instructor Manage Course (CRUD + Lectures) */}
+        {/* Instructor Manage Course */}
         <Route
           path="/instructor/course/:id"
           element={

@@ -12,8 +12,7 @@ const CourseDetail = () => {
   const [lectures, setLectures] = useState([]);
   const [progressMap, setProgressMap] = useState({});
 
-  // 🔥 AI insights
-  const [weakLectures, setWeakLectures] = useState([]);
+  // 🤖 AI Study Advice
   const [studyAdvice, setStudyAdvice] = useState(null);
   const [loadingAdvice, setLoadingAdvice] = useState(false);
 
@@ -64,7 +63,7 @@ const CourseDetail = () => {
     setLectures(await res.json());
   };
 
-  // ================= FETCH PROGRESS (LectureProgress) =================
+  // ================= FETCH PROGRESS =================
   const fetchProgress = async () => {
     const res = await fetch(
       `http://localhost:5000/api/progress/course/${id}`,
@@ -77,16 +76,6 @@ const CourseDetail = () => {
       map[p.lecture] = p.watchedPercent;
     });
     setProgressMap(map);
-  };
-
-  // ================= FETCH WEAK LECTURES =================
-  const fetchWeakLectures = async () => {
-    const res = await fetch(
-      `http://localhost:5000/api/recommendations/weak/${id}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const data = await res.json();
-    setWeakLectures(Array.isArray(data) ? data : []);
   };
 
   // ================= FETCH STUDY ADVICE =================
@@ -117,7 +106,6 @@ const CourseDetail = () => {
     if (isEnrolled) {
       fetchLectures();
       fetchProgress();
-      fetchWeakLectures();
     }
   }, [isEnrolled]);
 
@@ -189,7 +177,6 @@ const CourseDetail = () => {
   if (loading) return <div className="text-center mt-20">Loading...</div>;
   if (error) return <div className="text-red-600 mt-20">{error}</div>;
 
-  // ================= UI =================
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <button onClick={() => navigate(-1)} className="text-indigo-600 mb-4">
@@ -209,6 +196,7 @@ const CourseDetail = () => {
         </button>
       ) : (
         <>
+          {/* LECTURES */}
           <h2 className="text-2xl font-semibold mb-4">Lectures</h2>
 
           {lectures.map((lec, i) => (
@@ -250,53 +238,34 @@ const CourseDetail = () => {
             </div>
           ))}
 
-          {/* 🔥 LEARNING INSIGHTS */}
+          {/* STUDY ADVICE */}
           <hr className="my-10" />
+          <h2 className="text-2xl font-semibold mb-4">📊 AI Study Advice</h2>
 
-          <h2 className="text-2xl font-semibold mb-4">
-            📊 Your Learning Insights
-          </h2>
+          <button
+            onClick={fetchStudyAdvice}
+            className="mb-4 px-4 py-2 bg-blue-600 text-white rounded"
+          >
+            Get Advice
+          </button>
 
-          {weakLectures.length > 0 && (
-            <div className="bg-yellow-50 border border-yellow-300 p-4 rounded mb-6">
-              <h3 className="font-semibold mb-2">⚠️ Weak Lectures</h3>
-              <ul className="list-disc pl-5 text-sm">
-                {weakLectures.map((w) => (
-                  <li key={w._id}>
-                    {w.lecture.title} – {w.watchedPercent}% watched
-                  </li>
-                ))}
-              </ul>
-            </div>
+          {loadingAdvice && <p>Thinking...</p>}
+
+          {studyAdvice?.advice?.map((a, i) => (
+            <p key={i} className="text-sm mb-2">
+              {a}
+            </p>
+          ))}
+
+          {studyAdvice?.suggestions?.length > 0 && (
+            <ul className="list-disc pl-5 text-sm mt-3">
+              {studyAdvice.suggestions.map((s) => (
+                <li key={s.lectureId}>{s.message}</li>
+              ))}
+            </ul>
           )}
 
-          <div className="bg-blue-50 border border-blue-300 p-4 rounded">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="font-semibold">🤖 AI Study Advice</h3>
-              <button
-                onClick={fetchStudyAdvice}
-                className="px-4 py-1 text-sm bg-blue-600 text-white rounded"
-              >
-                Get Advice
-              </button>
-            </div>
-
-            {loadingAdvice && <p className="text-sm">Thinking...</p>}
-
-            {studyAdvice?.advice && (
-              <p className="text-sm mt-2">{studyAdvice.advice}</p>
-            )}
-
-            {studyAdvice?.suggestions && (
-              <ul className="list-disc pl-5 text-sm mt-2">
-                {studyAdvice.suggestions.map((s) => (
-                  <li key={s.lectureId}>{s.message}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* 🤖 AI TUTOR */}
+          {/* AI TUTOR */}
           <hr className="my-10" />
           <h2 className="text-2xl font-semibold mb-2">🤖 Ask AI Tutor</h2>
 
@@ -326,7 +295,7 @@ const CourseDetail = () => {
         </>
       )}
 
-      {/* 🎬 VIDEO MODAL */}
+      {/* VIDEO MODAL */}
       {activeLecture && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center">
           <div className="bg-white p-4 rounded w-full max-w-4xl relative">
@@ -346,16 +315,13 @@ const CourseDetail = () => {
               }
               className="w-full"
             >
-              <source
-                src={activeLecture.videoUrl}
-                type="video/mp4"
-              />
+              <source src={activeLecture.videoUrl} type="video/mp4" />
             </video>
           </div>
         </div>
       )}
 
-      {/* 🧠 QUIZ MODAL */}
+      {/* QUIZ MODAL */}
       {activeQuizLecture && (
         <Quiz
           lectureId={activeQuizLecture._id}

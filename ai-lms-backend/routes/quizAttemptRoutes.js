@@ -1,8 +1,10 @@
-const express = require("express");
+import express from "express";
+import { protect } from "../middlewares/authMiddleware.js";
+import Quiz from "../models/Quiz.js";
+import QuizAttempt from "../models/QuizAttempt.js";
+
 const router = express.Router();
-const { protect } = require("../middlewares/authMiddleware");
-const Quiz = require("../models/Quiz");
-const QuizAttempt = require("../models/QuizAttempt");
+
 
 // 🔹 Submit quiz
 router.post("/submit/:quizId", protect, async (req, res) => {
@@ -47,4 +49,5 @@ router.post("/submit/:quizId", protect, async (req, res) => {
   }
 });
 
-module.exports = router;
+
+export default router;

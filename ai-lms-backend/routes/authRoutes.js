@@ -1,8 +1,11 @@
-const express = require("express");
-const router = express.Router();
+import express from "express";
+import {
+  register,
+  login,
+} from "../controllers/authController.js";
+import { protect } from "../middlewares/authMiddleware.js";
 
-const { register, login } = require("../controllers/authController");
-const { protect } = require("../middlewares/authMiddleware");
+const router = express.Router(); // ✅ THIS WAS MISSING
 
 // 🔐 Register a new user
 router.post("/register", register);
@@ -13,7 +16,6 @@ router.post("/login", login);
 // 👤 Get logged-in user info (JWT protected)
 router.get("/me", protect, async (req, res) => {
   try {
-    // req.user is populated by the protect middleware
     res.status(200).json(req.user);
   } catch (err) {
     console.error("Error fetching user:", err);
@@ -21,4 +23,4 @@ router.get("/me", protect, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

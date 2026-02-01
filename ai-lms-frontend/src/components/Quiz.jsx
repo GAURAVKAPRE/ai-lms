@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-  
 
 const Quiz = ({ lectureId, onClose }) => {
   const [quiz, setQuiz] = useState(null);
@@ -11,11 +10,26 @@ const Quiz = ({ lectureId, onClose }) => {
 
   const token = localStorage.getItem("token");
 
+  // ================= RESET STATE WHEN OPENED =================
+  useEffect(() => {
+    setQuiz(null);
+    setAnswers([]);
+    setResult(null);
+    setError("");
+    setLoading(true);
+    fetchQuiz();
+    // eslint-disable-next-line
+  }, [lectureId]);
+
   // ================= FETCH / GENERATE QUIZ =================
   const fetchQuiz = async () => {
-    try {
-      console.log("🧠 Quiz opened for lecture:", lectureId);
+    if (!token) {
+      setError("Session expired. Please login again.");
+      setLoading(false);
+      return;
+    }
 
+    try {
       const res = await fetch(
         `http://localhost:5000/api/quizzes/generate/${lectureId}`,
         {
@@ -27,7 +41,6 @@ const Quiz = ({ lectureId, onClose }) => {
       );
 
       const data = await res.json();
-      console.log("📦 Quiz API response:", data);
 
       if (!res.ok) {
         throw new Error(data.message || "Quiz generation failed");
@@ -35,17 +48,11 @@ const Quiz = ({ lectureId, onClose }) => {
 
       setQuiz(data.quiz);
     } catch (err) {
-      console.error("❌ Quiz error:", err.message);
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchQuiz();
-    // eslint-disable-next-line
-  }, []);
 
   // ================= SELECT ANSWER =================
   const handleSelect = (questionIndex, optionIndex) => {
@@ -61,7 +68,13 @@ const Quiz = ({ lectureId, onClose }) => {
   const handleSubmit = async () => {
     if (!quiz) return;
 
-    if (answers.length !== quiz.questions.length) {
+    // ✅ ensure ALL questions are answered
+    const answeredIndexes = answers.map((a) => a.questionIndex);
+    const allAnswered = quiz.questions.every((_, idx) =>
+      answeredIndexes.includes(idx)
+    );
+
+    if (!allAnswered) {
       alert("Please answer all questions");
       return;
     }
@@ -108,27 +121,21 @@ const Quiz = ({ lectureId, onClose }) => {
 
         <h2 className="text-2xl font-bold mb-4">🧠 AI Quiz</h2>
 
-        {/* ================= LOADING ================= */}
+        {/* LOADING */}
         {loading && (
           <p className="text-gray-600">
             🤖 Generating quiz from lecture PDF...
           </p>
         )}
 
-        {/* ================= ERROR ================= */}
+        {/* ERROR */}
         {!loading && error && (
           <div className="bg-red-100 border border-red-300 p-4 rounded">
-            <p className="text-red-700 font-semibold">
-              ❌ {error}
-            </p>
-            <p className="text-sm text-gray-600 mt-2">
-              This usually happens if the lecture has no PDF or PDF text
-              extraction failed.
-            </p>
+            <p className="text-red-700 font-semibold">❌ {error}</p>
           </div>
         )}
 
-        {/* ================= RESULT ================= */}
+        {/* RESULT */}
         {result && (
           <div>
             <h3 className="text-xl font-semibold mb-4">
@@ -157,8 +164,7 @@ const Quiz = ({ lectureId, onClose }) => {
                   {!r.isCorrect && (
                     <>
                       <p className="text-sm">
-                        ✅ Correct answer: Option{" "}
-                        {r.correctAnswer + 1}
+                        ✅ Correct answer: Option {r.correctAnswer + 1}
                       </p>
                       <p className="text-sm italic mt-1">
                         💡 {r.explanation}
@@ -178,7 +184,7 @@ const Quiz = ({ lectureId, onClose }) => {
           </div>
         )}
 
-        {/* ================= QUESTIONS ================= */}
+        {/* QUESTIONS */}
         {!loading && !error && quiz && !result && (
           <>
             {quiz.questions.map((q, qi) => (

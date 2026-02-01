@@ -1,11 +1,13 @@
-const express = require("express");
-const router = express.Router();
-const { protect } = require("../middlewares/authMiddleware");
+import express from "express";
+import { protect } from "../middlewares/authMiddleware.js";
 
-const {
+import {
   generateQuiz,
   submitQuiz,
-} = require("../controllers/quizController");
+  getQuizById,
+} from "../controllers/quizController.js";
+
+const router = express.Router();
 
 // ================= GENERATE AI QUIZ =================
 // POST /api/quizzes/generate/:lectureId
@@ -13,6 +15,14 @@ router.post(
   "/generate/:lectureId",
   protect,
   generateQuiz
+);
+
+// ================= GET QUIZ BY ID =================
+// GET /api/quizzes/:quizId
+router.get(
+  "/:quizId",
+  protect,
+  getQuizById
 );
 
 // ================= SUBMIT QUIZ =================
@@ -23,4 +33,4 @@ router.post(
   submitQuiz
 );
 
-module.exports = router;
+export default router;

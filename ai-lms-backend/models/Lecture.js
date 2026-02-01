@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const lectureSchema = new mongoose.Schema(
   {
@@ -14,16 +14,47 @@ const lectureSchema = new mongoose.Schema(
     },
 
     videoUrl: {
-      type: String, // Cloudinary video URL
+      type: String, // S3 / Cloudinary video URL
     },
 
     pdfUrl: {
-      type: String, // Cloudinary PDF URL
+      type: String, // S3 / Cloudinary PDF URL
     },
 
-    // 🔥 NEW: extracted text from PDF (for AI)
+    // 🔥 Extracted text from PDF (for AI & Quiz)
     pdfText: {
       type: String,
+      default: "",
+    },
+
+    // ✅ tells if text extraction succeeded
+    isTextExtracted: {
+      type: Boolean,
+      default: false,
+    },
+
+    // 🧩 NEW: AI-ready text chunks
+    pdfChunks: [
+      {
+        index: {
+          type: Number,
+          required: true,
+        },
+        text: {
+          type: String,
+          required: true,
+        },
+        wordCount: {
+          type: Number,
+          required: true,
+        },
+      },
+    ],
+
+    // ✅ NEW: tells if chunking is completed
+    isChunked: {
+      type: Boolean,
+      default: false,
     },
 
     order: {
@@ -40,4 +71,8 @@ const lectureSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Lecture", lectureSchema);
+// ✅ CORRECT model creation
+const Lecture = mongoose.model("Lecture", lectureSchema);
+
+// ✅ CORRECT export
+export default Lecture;

@@ -1,5 +1,5 @@
-const { PutObjectCommand } = require("@aws-sdk/client-s3");
-const s3 = require("./s3");
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import s3 from "./s3.js";
 
 const uploadToS3 = async ({ file, folder }) => {
   const fileKey = `${folder}/${Date.now()}-${file.originalname}`;
@@ -16,4 +16,4 @@ const uploadToS3 = async ({ file, folder }) => {
   return `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileKey}`;
 };
 
-module.exports = uploadToS3;
+export default  uploadToS3;

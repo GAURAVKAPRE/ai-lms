@@ -1,14 +1,16 @@
-const Quiz = require("../models/Quiz");
-const QuizAttempt = require("../models/QuizAttempt");
-const Lecture = require("../models/Lecture");
-const openai = require("../utils/openai");
+import Quiz from "../models/Quiz.js";
+import QuizAttempt from "../models/QuizAttempt.js";
+import Lecture from "../models/Lecture.js";
 
-// ================= GENERATE QUIZ (AI) =================
-exports.generateQuiz = async (req, res) => {
+// ✅ Gemini AI service
+import { generateQuizFromText } from "../services/aiService.js";
+
+// ================= GENERATE QUIZ =================
+const generateQuiz = async (req, res) => {
   try {
     const { lectureId } = req.params;
 
-    // 1️⃣ Check lecture
+    // 1️⃣ Fetch lecture
     const lecture = await Lecture.findById(lectureId);
     if (!lecture || !lecture.pdfText || !lecture.pdfText.trim()) {
       return res.status(400).json({
@@ -16,60 +18,27 @@ exports.generateQuiz = async (req, res) => {
       });
     }
 
-    // 2️⃣ Reuse quiz if already exists
+    // 2️⃣ Reuse existing quiz
     let quiz = await Quiz.findOne({ lecture: lectureId });
     if (quiz) {
       return res.status(200).json({ quiz });
     }
 
-    // 3️⃣ Ask AI to generate quiz
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `
-Generate exactly 5 multiple-choice questions from the lecture content.
+    // 3️⃣ Generate quiz using Gemini
+    const aiResponse = await generateQuizFromText(lecture.pdfText);
 
-Rules:
-- Return ONLY valid JSON
-- Each question must have exactly 4 options
-- correctAnswer must be a number between 0 and 3
-
-JSON format:
-[
-  {
-    "question": "string",
-    "options": ["A", "B", "C", "D"],
-    "correctAnswer": 0,
-    "explanation": "short explanation"
-  }
-]
-          `,
-        },
-        {
-          role: "user",
-          content: lecture.pdfText,
-        },
-      ],
-      temperature: 0.3,
-    });
-
-    // 4️⃣ Safe JSON parsing with validation
     let questions;
     try {
-      questions = JSON.parse(
-        completion.choices[0].message.content
-      );
+      questions = JSON.parse(aiResponse);
     } catch (err) {
       return res.status(500).json({
-        message: "AI returned invalid JSON format",
+        message: "AI returned invalid JSON",
       });
     }
 
+    // 4️⃣ Validate structure
     if (
       !Array.isArray(questions) ||
-      questions.length === 0 ||
       !questions.every(
         (q) =>
           q.question &&
@@ -79,7 +48,7 @@ JSON format:
       )
     ) {
       return res.status(500).json({
-        message: "AI returned invalid question structure",
+        message: "Invalid quiz structure from AI",
       });
     }
 
@@ -98,13 +67,13 @@ JSON format:
 };
 
 // ================= SUBMIT QUIZ =================
-exports.submitQuiz = async (req, res) => {
+const submitQuiz = async (req, res) => {
   try {
     const { quizId } = req.params;
     const { answers } = req.body;
 
-    if (!quizId || !Array.isArray(answers)) {
-      return res.status(400).json({ message: "Invalid submission" });
+    if (!Array.isArray(answers)) {
+      return res.status(400).json({ message: "Invalid answers format" });
     }
 
     const quiz = await Quiz.findById(quizId);
@@ -131,11 +100,11 @@ exports.submitQuiz = async (req, res) => {
         correctAnswer: q.correctAnswer,
         selectedOption: userAnswer?.selectedOption ?? null,
         isCorrect,
-        explanation: q.explanation || "No explanation available",
+        explanation: q.explanation || "",
       });
     });
 
-    // 6️⃣ Save quiz attempt
+    // Save attempt
     await QuizAttempt.create({
       quiz: quiz._id,
       user: req.user._id,
@@ -149,8 +118,29 @@ exports.submitQuiz = async (req, res) => {
       score,
       results,
     });
-  } catch (err) {
-    console.error("Quiz submission error:", err);
+  } catch (error) {
+    console.error("Submit quiz error:", error);
     res.status(500).json({ message: "Quiz submission failed" });
   }
 };
+
+// ================= GET QUIZ BY ID =================
+const getQuizById = async (req, res) => {
+  try {
+    const { quizId } = req.params;
+
+    const quiz = await Quiz.findById(quizId);
+    if (!quiz) {
+      return res.status(404).json({ message: "Quiz not found" });
+    }
+
+    res.status(200).json(quiz);
+  } catch (error) {
+    console.error("Get quiz error:", error);
+    res.status(500).json({ message: "Failed to fetch quiz" });
+  }
+};
+
+
+// ✅ IMPORTANT: named exports
+export { generateQuiz, submitQuiz, getQuizById };

@@ -1,32 +1,36 @@
-const mongoose = require("mongoose");
+import mongoose from  "mongoose";
 
 const quizSchema = new mongoose.Schema(
   {
+    // 🔗 Course reference (for analytics / access control)
     course: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Course",
       required: true,
     },
 
+    // 🔗 One quiz per lecture (VERY IMPORTANT)
     lecture: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Lecture",
       required: true,
-      unique: true, // 🔥 one quiz per lecture
+      unique: true, // 🔥 ensures one quiz per lecture
     },
 
+    // 🧠 AI-generated questions
     questions: [
       {
         question: {
           type: String,
           required: true,
+          trim: true,
         },
 
         options: {
           type: [String],
           required: true,
           validate: {
-            validator: (v) => v.length === 4,
+            validator: (v) => Array.isArray(v) && v.length === 4,
             message: "Each question must have exactly 4 options",
           },
         },
@@ -39,16 +43,20 @@ const quizSchema = new mongoose.Schema(
         },
 
         explanation: {
-          type: String, // 🔥 AI feedback
+          type: String, // 🔥 AI explanation for learning
           default: "",
+          trim: true,
         },
       },
     ],
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-// 🔒 Extra safety (DB-level)
+// 🔒 Extra DB-level safety (prevents duplicate quizzes)
 quizSchema.index({ lecture: 1 }, { unique: true });
 
-module.exports = mongoose.model("Quiz", quizSchema);
+export default mongoose.model("Quiz", quizSchema);
+

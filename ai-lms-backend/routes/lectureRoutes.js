@@ -1,18 +1,16 @@
-const express = require("express");
-const router = express.Router();
-
-const {
+import express from "express";
+import {
   createLecture,
   getLecturesByCourse,
   updateLecture,
   deleteLecture,
-} = require("../controllers/lectureController");
+} from "../controllers/lectureController.js";
 
-const { protect } = require("../middlewares/authMiddleware");
-const roleMiddleware = require("../middlewares/roleMiddleware");
+import { protect } from "../middlewares/authMiddleware.js";
+import roleMiddleware from "../middlewares/roleMiddleware.js";
+import upload from "../middlewares/upload.js";
 
-// ✅ AWS S3 upload middleware
-const upload = require("../middlewares/upload");
+const router = express.Router();
 
 /*
 ====================================================
@@ -21,7 +19,6 @@ LECTURE ROUTES (AWS S3 BASED)
 */
 
 // ================= CREATE LECTURE =================
-// Instructor adds lecture with VIDEO + PDF
 // POST /api/courses/:courseId/lectures
 router.post(
   "/courses/:courseId/lectures",
@@ -35,7 +32,6 @@ router.post(
 );
 
 // ================= GET LECTURES BY COURSE =================
-// Instructor (owner) OR Student (enrolled)
 // GET /api/courses/:courseId/lectures
 router.get(
   "/courses/:courseId/lectures",
@@ -44,17 +40,19 @@ router.get(
 );
 
 // ================= UPDATE LECTURE =================
-// Instructor (owner only)
 // PUT /api/lectures/:id
 router.put(
   "/lectures/:id",
   protect,
   roleMiddleware("instructor"),
+  upload.fields([
+    { name: "video", maxCount: 1 },
+    { name: "pdf", maxCount: 1 },
+  ]),
   updateLecture
 );
 
 // ================= DELETE LECTURE =================
-// Instructor (owner only)
 // DELETE /api/lectures/:id
 router.delete(
   "/lectures/:id",
@@ -63,4 +61,4 @@ router.delete(
   deleteLecture
 );
 
-module.exports = router;
+export default router;

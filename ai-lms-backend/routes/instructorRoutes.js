@@ -1,9 +1,10 @@
-const express = require("express");
-const router = express.Router();
-const { protect } = require("../middlewares/authMiddleware");
-const Course = require("../models/Course");
+import express from "express";
+import { protect } from "../middlewares/authMiddleware.js";
+import Course from "../models/Course.js";
 
-// Enable instructor
+const router = express.Router();
+
+// ================= ENABLE INSTRUCTOR =================
 router.post("/enable", protect, async (req, res) => {
   if (req.user.instructorProfile.enabled) {
     return res.status(400).json({ message: "Already an instructor" });
@@ -15,7 +16,7 @@ router.post("/enable", protect, async (req, res) => {
   res.json({ instructorProfile: req.user.instructorProfile });
 });
 
-// Disable instructor
+// ================= DISABLE INSTRUCTOR =================
 router.post("/disable", protect, async (req, res) => {
   if (!req.user.instructorProfile.enabled) {
     return res.status(400).json({ message: "Not an instructor" });
@@ -27,15 +28,18 @@ router.post("/disable", protect, async (req, res) => {
   res.json({ instructorProfile: req.user.instructorProfile });
 });
 
-// Create course (instructor only)
+// ================= CREATE COURSE (INSTRUCTOR ONLY) =================
 router.post("/course", protect, async (req, res) => {
   if (!req.user.instructorProfile.enabled) {
     return res.status(403).json({ message: "Instructor access required" });
   }
 
   const { title, description } = req.body;
+
   if (!title || !description) {
-    return res.status(400).json({ message: "Title and description are required" });
+    return res
+      .status(400)
+      .json({ message: "Title and description are required" });
   }
 
   const course = await Course.create({
@@ -50,4 +54,4 @@ router.post("/course", protect, async (req, res) => {
   res.status(201).json(course);
 });
 
-module.exports = router;
+export default router;

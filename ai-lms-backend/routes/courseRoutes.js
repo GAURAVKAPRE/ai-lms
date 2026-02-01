@@ -1,31 +1,23 @@
-const express = require("express");
+import express from "express";
 const router = express.Router();
 
-const {
+import {
   createCourse,
   getAllCourses,
+  getMyCourses,
   getCourseById,
   enrollInCourse,
-  getMyCourses,
   updateCourse,
   deleteCourse,
-} = require("../controllers/courseController");
+} from "../controllers/courseController.js";
 
-const { protect } = require("../middlewares/authMiddleware");
-const roleMiddleware = require("../middlewares/roleMiddleware");
+import { protect } from "../middlewares/authMiddleware.js";
+import roleMiddleware from "../middlewares/roleMiddleware.js";
 
-/*
-  @route   GET /api/courses
-  @desc    Get all courses (Students)
-  @access  Private
-*/
+// GET all courses
 router.get("/", protect, getAllCourses);
 
-/*
-  @route   GET /api/courses/my
-  @desc    Get courses created by current instructor
-  @access  Private (Instructor only)
-*/
+// GET instructor's courses
 router.get(
   "/my",
   protect,
@@ -33,18 +25,10 @@ router.get(
   getMyCourses
 );
 
-/*
-  @route   GET /api/courses/:id
-  @desc    Get single course
-  @access  Private
-*/
+// GET single course
 router.get("/:id", protect, getCourseById);
 
-/*
-  @route   POST /api/courses
-  @desc    Create course
-  @access  Private (Instructor only)
-*/
+// CREATE course
 router.post(
   "/",
   protect,
@@ -52,18 +36,10 @@ router.post(
   createCourse
 );
 
-/*
-  @route   POST /api/courses/:id/enroll
-  @desc    Enroll in course
-  @access  Private
-*/
+// ENROLL course
 router.post("/:id/enroll", protect, enrollInCourse);
 
-/*
-  @route   PUT /api/courses/:id
-  @desc    Update course
-  @access  Private (Instructor - Owner)
-*/
+// UPDATE course
 router.put(
   "/:id",
   protect,
@@ -71,11 +47,7 @@ router.put(
   updateCourse
 );
 
-/*
-  @route   DELETE /api/courses/:id
-  @desc    Delete course
-  @access  Private (Instructor - Owner)
-*/
+// DELETE course
 router.delete(
   "/:id",
   protect,
@@ -83,5 +55,4 @@ router.delete(
   deleteCourse
 );
 
-
-module.exports = router;
+export default router;

@@ -1,16 +1,4 @@
-const mongoose = require("mongoose");
-
-const lessonSchema = new mongoose.Schema(
-  {
-    title: {
-      type: String,
-      required: true,
-    },
-    description: String,
-    fileUrl: String, // video or pdf URL (later)
-  },
-  { _id: false }
-);
+import  mongoose from "mongoose";
 
 const courseSchema = new mongoose.Schema(
   {
@@ -37,7 +25,7 @@ const courseSchema = new mongoose.Schema(
 
     price: {
       type: Number,
-      default: 0, // 0 = free course
+      default: 0,
     },
 
     instructor: {
@@ -52,10 +40,8 @@ const courseSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
-
-    lessons: [lessonSchema],
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Course", courseSchema);
+export default mongoose.model("Course", courseSchema);

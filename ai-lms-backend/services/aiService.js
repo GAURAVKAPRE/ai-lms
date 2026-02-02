@@ -1,4 +1,4 @@
-import { geminiFlash } from "../utils/gemini.js";
+import { geminiModel} from "../utils/gemini.js";
 
 /**
  * 🤖 Ask AI Tutor (course-restricted)
@@ -23,7 +23,7 @@ Question:
 ${question}
 `;
 
-  const result = await geminiFlash.generateContent(prompt);
+  const result = await geminiModel.generateContent(prompt);
   return result.response.text();
 };
 

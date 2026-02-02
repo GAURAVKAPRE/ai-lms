@@ -7,8 +7,6 @@ import chunkText from "../utils/chunkText.js";
 // ================= CREATE LECTURE =================
 const createLecture = async (req, res) => {
   try {
-    console.log("📥 FILES RECEIVED:", req.files);
-
     const { title, description, order } = req.body;
     const { courseId } = req.params;
 
@@ -25,13 +23,13 @@ const createLecture = async (req, res) => {
       });
     }
 
-    // 🔍 Check course
+    // 🔍 Validate course
     const course = await Course.findById(courseId);
     if (!course) {
       return res.status(404).json({ message: "Course not found" });
     }
 
-    // 🔐 Ownership check
+    // 🔐 Instructor-only access
     if (String(course.instructor) !== String(req.user._id)) {
       return res.status(403).json({ message: "Not authorized" });
     }
@@ -43,8 +41,6 @@ const createLecture = async (req, res) => {
 
     if (pdfFile?.location) {
       try {
-        console.log("📄 Fetching PDF from S3:", pdfFile.location);
-
         const response = await axios.get(pdfFile.location, {
           responseType: "arraybuffer",
         });
@@ -59,21 +55,18 @@ const createLecture = async (req, res) => {
         const parsed = await pdfParse(response.data);
         extractedPdfText = parsed.text?.trim() || "";
 
-        console.log("✅ PDF TEXT LENGTH:", extractedPdfText.length);
-
-        // 🚨 Reject scanned / empty PDFs
-        if (extractedPdfText.length === 0) {
+        // 🚫 Reject scanned PDFs
+        if (!extractedPdfText) {
           return res.status(400).json({
             message:
-              "PDF text could not be extracted. Please upload a text-based PDF (not scanned).",
+              "PDF text could not be extracted. Please upload a text-based PDF.",
           });
         }
 
-        // 🧩 PHASE 2 — CHUNKING
         pdfChunks = chunkText(extractedPdfText);
         isChunked = true;
       } catch (err) {
-        console.error("❌ PDF extraction failed:", err.message);
+        console.error("PDF extraction failed:", err);
         return res.status(500).json({
           message: "Failed to extract text from PDF",
         });
@@ -84,11 +77,11 @@ const createLecture = async (req, res) => {
     const lecture = await Lecture.create({
       title,
       description,
-      order: order || 0,
-      videoUrl: videoFile ? videoFile.location : "",
-      pdfUrl: pdfFile ? pdfFile.location : "",
+      order: Number(order) || 0,
+      videoUrl: videoFile?.location || "",
+      pdfUrl: pdfFile?.location || "",
       pdfText: extractedPdfText,
-      isTextExtracted: extractedPdfText.length > 0,
+      isTextExtracted: Boolean(extractedPdfText),
       pdfChunks,
       isChunked,
       course: courseId,
@@ -101,7 +94,7 @@ const createLecture = async (req, res) => {
   }
 };
 
-// ================= GET LECTURES =================
+// ================= GET LECTURES BY COURSE =================
 const getLecturesByCourse = async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -111,6 +104,7 @@ const getLecturesByCourse = async (req, res) => {
       return res.status(404).json({ message: "Course not found" });
     }
 
+    // 👨‍🏫 Instructor can always see lectures
     if (String(course.instructor) === String(req.user._id)) {
       const lectures = await Lecture.find({ course: courseId }).sort({
         order: 1,
@@ -119,12 +113,15 @@ const getLecturesByCourse = async (req, res) => {
       return res.json(lectures);
     }
 
+    // 🎓 Student must be enrolled (NOW WORKS because of symmetric enroll fix)
     const isEnrolled = course.enrolledStudents.some(
-      (id) => String(id) === String(req.user._id)
+      (uid) => String(uid) === String(req.user._id)
     );
 
     if (!isEnrolled) {
-      return res.status(403).json({ message: "Enroll to access lectures" });
+      return res.status(403).json({
+        message: "Enroll to access lectures",
+      });
     }
 
     const lectures = await Lecture.find({ course: courseId }).sort({
@@ -144,6 +141,7 @@ const updateLecture = async (req, res) => {
   try {
     const { id } = req.params;
     const lecture = await Lecture.findById(id);
+
     if (!lecture) {
       return res.status(404).json({ message: "Lecture not found" });
     }
@@ -153,7 +151,7 @@ const updateLecture = async (req, res) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    // 🔄 Re-upload PDF
+    // 🔄 PDF re-upload
     if (req.files?.pdf?.[0]?.location) {
       try {
         const response = await axios.get(req.files.pdf[0].location, {
@@ -170,16 +168,13 @@ const updateLecture = async (req, res) => {
           });
         }
 
-        // 🧩 Re-chunk on PDF update
-        const newChunks = chunkText(newText);
-
         lecture.pdfUrl = req.files.pdf[0].location;
         lecture.pdfText = newText;
+        lecture.pdfChunks = chunkText(newText);
         lecture.isTextExtracted = true;
-        lecture.pdfChunks = newChunks;
         lecture.isChunked = true;
       } catch (err) {
-        console.error("PDF re-extraction failed:", err.message);
+        console.error("PDF re-extraction failed:", err);
         return res.status(500).json({
           message: "Failed to re-extract PDF text",
         });
@@ -198,6 +193,7 @@ const updateLecture = async (req, res) => {
 const deleteLecture = async (req, res) => {
   try {
     const lecture = await Lecture.findById(req.params.id);
+
     if (!lecture) {
       return res.status(404).json({ message: "Lecture not found" });
     }

@@ -12,10 +12,6 @@ const CourseDetail = () => {
   const [lectures, setLectures] = useState([]);
   const [progressMap, setProgressMap] = useState({});
 
-  // 🤖 AI Study Advice
-  const [studyAdvice, setStudyAdvice] = useState(null);
-  const [loadingAdvice, setLoadingAdvice] = useState(false);
-
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [error, setError] = useState("");
@@ -25,6 +21,7 @@ const CourseDetail = () => {
 
   // 🧠 Quiz modal
   const [activeQuizLecture, setActiveQuizLecture] = useState(null);
+  const [quizLoading, setQuizLoading] = useState(false);
 
   // 🤖 AI Tutor
   const [question, setQuestion] = useState("");
@@ -60,52 +57,31 @@ const CourseDetail = () => {
       `http://localhost:5000/api/courses/${id}/lectures`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
-    setLectures(await res.json());
-  };
 
-  // ================= FETCH PROGRESS =================
-  const fetchProgress = async () => {
-    const res = await fetch(
-      `http://localhost:5000/api/progress/course/${id}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
     const data = await res.json();
 
-    const map = {};
-    data.forEach((p) => {
-      map[p.lecture] = p.watchedPercent;
-    });
-    setProgressMap(map);
-  };
-
-  // ================= FETCH STUDY ADVICE =================
-  const fetchStudyAdvice = async () => {
-    try {
-      setLoadingAdvice(true);
-      const res = await fetch(
-        `http://localhost:5000/api/study-advice/${id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const data = await res.json();
-      setStudyAdvice(data);
-    } finally {
-      setLoadingAdvice(false);
+    if (!res.ok) {
+      console.warn("Lecture access blocked:", data.message);
+      setLectures([]);
+      return;
     }
+
+    setLectures(Array.isArray(data) ? data : []);
   };
 
   useEffect(() => {
     fetchCourseAndUser();
   }, [id]);
 
+  // ✅ Correct enrollment check
   const isEnrolled =
-    course?.enrolledStudents?.some(
-      (stu) => String(stu) === String(user?._id)
+    user?.enrolledCourses?.some(
+      (cid) => String(cid) === String(course?._id)
     ) || false;
 
   useEffect(() => {
     if (isEnrolled) {
       fetchLectures();
-      fetchProgress();
     }
   }, [isEnrolled]);
 
@@ -117,37 +93,10 @@ const CourseDetail = () => {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
-      fetchCourseAndUser();
+      await fetchCourseAndUser();
     } finally {
       setEnrolling(false);
     }
-  };
-
-  // ================= VIDEO PROGRESS =================
-  const handleVideoProgress = async (lectureId, video) => {
-    if (!video.duration) return;
-
-    const watchedPercent = Math.floor(
-      (video.currentTime / video.duration) * 100
-    );
-
-    setProgressMap((prev) => ({
-      ...prev,
-      [lectureId]: Math.max(prev[lectureId] || 0, watchedPercent),
-    }));
-
-    await fetch(`http://localhost:5000/api/progress/${lectureId}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        courseId: id,
-        watchedPercent,
-        timeSpent: 5,
-      }),
-    });
   };
 
   // ================= ASK AI =================
@@ -196,12 +145,15 @@ const CourseDetail = () => {
         </button>
       ) : (
         <>
-          {/* LECTURES */}
           <h2 className="text-2xl font-semibold mb-4">Lectures</h2>
+
+          {lectures.length === 0 && (
+            <p className="text-gray-500">No lectures available yet.</p>
+          )}
 
           {lectures.map((lec, i) => (
             <div key={lec._id} className="border p-5 mb-4 rounded bg-white">
-              <h3 className="font-semibold mb-2">
+              <h3 className="font-semibold mb-3">
                 {i + 1}. {lec.title}
               </h3>
 
@@ -226,44 +178,26 @@ const CourseDetail = () => {
                   </a>
                 )}
 
-                {lec.pdfUrl && (
+                {lec.isChunked && (
                   <button
-                    onClick={() => setActiveQuizLecture(lec)}
-                    className="px-4 py-2 bg-purple-600 text-white rounded text-sm"
+                    disabled={quizLoading}
+                    onClick={() => {
+                      if (quizLoading) return;
+                      setQuizLoading(true);
+                      setActiveQuizLecture(lec);
+                    }}
+                    className={`px-4 py-2 rounded text-sm text-white ${
+                      quizLoading
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-purple-600 hover:bg-purple-700"
+                    }`}
                   >
-                    🧠 Take AI Quiz
+                    {quizLoading ? "Generating Quiz..." : "🧠 Take AI Quiz"}
                   </button>
                 )}
               </div>
             </div>
           ))}
-
-          {/* STUDY ADVICE */}
-          <hr className="my-10" />
-          <h2 className="text-2xl font-semibold mb-4">📊 AI Study Advice</h2>
-
-          <button
-            onClick={fetchStudyAdvice}
-            className="mb-4 px-4 py-2 bg-blue-600 text-white rounded"
-          >
-            Get Advice
-          </button>
-
-          {loadingAdvice && <p>Thinking...</p>}
-
-          {studyAdvice?.advice?.map((a, i) => (
-            <p key={i} className="text-sm mb-2">
-              {a}
-            </p>
-          ))}
-
-          {studyAdvice?.suggestions?.length > 0 && (
-            <ul className="list-disc pl-5 text-sm mt-3">
-              {studyAdvice.suggestions.map((s) => (
-                <li key={s.lectureId}>{s.message}</li>
-              ))}
-            </ul>
-          )}
 
           {/* AI TUTOR */}
           <hr className="my-10" />
@@ -306,15 +240,7 @@ const CourseDetail = () => {
               ✕
             </button>
 
-            <video
-              controls
-              autoPlay
-              playsInline
-              onTimeUpdate={(e) =>
-                handleVideoProgress(activeLecture._id, e.target)
-              }
-              className="w-full"
-            >
+            <video controls autoPlay className="w-full">
               <source src={activeLecture.videoUrl} type="video/mp4" />
             </video>
           </div>
@@ -325,7 +251,10 @@ const CourseDetail = () => {
       {activeQuizLecture && (
         <Quiz
           lectureId={activeQuizLecture._id}
-          onClose={() => setActiveQuizLecture(null)}
+          onClose={() => {
+            setActiveQuizLecture(null);
+            setQuizLoading(false);
+          }}
         />
       )}
     </div>

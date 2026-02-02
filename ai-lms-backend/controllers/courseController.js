@@ -4,7 +4,7 @@ import User from "../models/User.js";
 // ================= CREATE COURSE =================
 export const createCourse = async (req, res) => {
   try {
-    const { title, description, price } = req.body;
+    const { title, description, price, category } = req.body;
 
     if (!title || !description) {
       return res
@@ -15,15 +15,18 @@ export const createCourse = async (req, res) => {
     const course = await Course.create({
       title,
       description,
-      price: price || 0,
+      category: category || "General",
+      price,
       instructor: req.user._id,
     });
 
+    // Track course under instructor profile
     req.user.instructorProfile.coursesCreated.push(course._id);
     await req.user.save();
 
     res.status(201).json(course);
   } catch (error) {
+    console.error("CREATE COURSE ERROR:", error);
     res.status(500).json({ message: "Failed to create course" });
   }
 };
@@ -41,7 +44,7 @@ export const getAllCourses = async (req, res) => {
   }
 };
 
-// ================= GET MY COURSES =================
+// ================= GET MY COURSES (INSTRUCTOR) =================
 export const getMyCourses = async (req, res) => {
   try {
     const courses = await Course.find({
@@ -71,7 +74,7 @@ export const getCourseById = async (req, res) => {
   }
 };
 
-// ================= ENROLL COURSE =================
+// ================= ENROLL COURSE (FIXED) =================
 export const enrollInCourse = async (req, res) => {
   try {
     const course = await Course.findById(req.params.id);
@@ -80,15 +83,32 @@ export const enrollInCourse = async (req, res) => {
       return res.status(404).json({ message: "Course not found" });
     }
 
-    if (req.user.enrolledCourses.includes(course._id)) {
+    // 🚫 Instructor cannot enroll in own course
+    if (String(course.instructor) === String(req.user._id)) {
+      return res.status(400).json({
+        message: "Instructor cannot enroll in their own course",
+      });
+    }
+
+    // 🔒 Safe ObjectId comparison
+    const alreadyEnrolled = req.user.enrolledCourses.some(
+      (cid) => String(cid) === String(course._id)
+    );
+
+    if (alreadyEnrolled) {
       return res.status(400).json({ message: "Already enrolled" });
     }
 
+    // ✅ SYMMETRIC ENROLLMENT (CRITICAL FIX)
     req.user.enrolledCourses.push(course._id);
     await req.user.save();
 
+    course.enrolledStudents.push(req.user._id);
+    await course.save();
+
     res.json({ message: "Enrolled successfully" });
   } catch (error) {
+    console.error("ENROLL COURSE ERROR:", error);
     res.status(500).json({ message: "Enrollment failed" });
   }
 };
@@ -102,13 +122,19 @@ export const updateCourse = async (req, res) => {
       return res.status(404).json({ message: "Course not found" });
     }
 
-    if (course.instructor.toString() !== req.user._id.toString()) {
+    if (String(course.instructor) !== String(req.user._id)) {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    Object.assign(course, req.body);
-    await course.save();
+    // Whitelist updates
+    const allowedFields = ["title", "description", "price", "category", "level"];
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        course[field] = req.body[field];
+      }
+    });
 
+    await course.save();
     res.json(course);
   } catch (error) {
     res.status(500).json({ message: "Update failed" });
@@ -124,7 +150,7 @@ export const deleteCourse = async (req, res) => {
       return res.status(404).json({ message: "Course not found" });
     }
 
-    if (course.instructor.toString() !== req.user._id.toString()) {
+    if (String(course.instructor) !== String(req.user._id)) {
       return res.status(403).json({ message: "Not authorized" });
     }
 

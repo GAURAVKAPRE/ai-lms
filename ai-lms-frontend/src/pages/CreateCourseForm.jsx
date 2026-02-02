@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 
 const CreateCourseForm = ({
-  mode = "create", // "create" | "edit"
+  mode = "create",
   initialData = null,
   courseId = null,
   onSuccess,
@@ -33,7 +33,7 @@ const CreateCourseForm = ({
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -46,8 +46,9 @@ const CreateCourseForm = ({
       return;
     }
 
-    if (!formData.title || !formData.description || !formData.category) {
-      setError("Please fill all required fields");
+    // ✅ ONLY validate what backend actually needs
+    if (!formData.title.trim() || !formData.description.trim()) {
+      setError("Title and description are required");
       return;
     }
 
@@ -61,13 +62,20 @@ const CreateCourseForm = ({
 
       const method = mode === "edit" ? "PUT" : "POST";
 
+      // ✅ SEND ONLY RELEVANT FIELDS
+      const payload = {
+        title: formData.title,
+        description: formData.description,
+        price: Number(formData.price) || 0,
+      };
+
       const res = await fetch(url, {
         method,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -112,12 +120,13 @@ const CreateCourseForm = ({
           className="w-full px-4 py-2 border rounded-lg"
         />
 
+        {/* Optional UI-only fields (not sent to backend) */}
         <input
           type="text"
           name="category"
           value={formData.category}
           onChange={handleChange}
-          placeholder="Category"
+          placeholder="Category (optional)"
           className="w-full px-4 py-2 border rounded-lg"
         />
 

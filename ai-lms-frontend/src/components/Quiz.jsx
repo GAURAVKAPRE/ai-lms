@@ -46,7 +46,8 @@ const Quiz = ({ lectureId, onClose }) => {
         throw new Error(data.message || "Quiz generation failed");
       }
 
-      setQuiz(data.quiz);
+      // ✅ FIX IS HERE
+      setQuiz(data);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -68,7 +69,6 @@ const Quiz = ({ lectureId, onClose }) => {
   const handleSubmit = async () => {
     if (!quiz) return;
 
-    // ✅ ensure ALL questions are answered
     const answeredIndexes = answers.map((a) => a.questionIndex);
     const allAnswered = quiz.questions.every((_, idx) =>
       answeredIndexes.includes(idx)
@@ -121,71 +121,13 @@ const Quiz = ({ lectureId, onClose }) => {
 
         <h2 className="text-2xl font-bold mb-4">🧠 AI Quiz</h2>
 
-        {/* LOADING */}
-        {loading && (
-          <p className="text-gray-600">
-            🤖 Generating quiz from lecture PDF...
-          </p>
-        )}
+        {loading && <p>🤖 Loading quiz...</p>}
 
-        {/* ERROR */}
         {!loading && error && (
-          <div className="bg-red-100 border border-red-300 p-4 rounded">
-            <p className="text-red-700 font-semibold">❌ {error}</p>
-          </div>
+          <p className="text-red-600 font-semibold">{error}</p>
         )}
 
-        {/* RESULT */}
-        {result && (
-          <div>
-            <h3 className="text-xl font-semibold mb-4">
-              🎯 Score: {result.score} / {result.totalQuestions}
-            </h3>
-
-            <div className="space-y-4">
-              {result.results.map((r, i) => (
-                <div
-                  key={i}
-                  className={`p-4 rounded ${
-                    r.isCorrect ? "bg-green-100" : "bg-red-100"
-                  }`}
-                >
-                  <p className="font-semibold">
-                    Q{i + 1}. {r.question}
-                  </p>
-
-                  <p className="text-sm mt-1">
-                    Your answer:{" "}
-                    {r.selectedOption !== null
-                      ? `Option ${r.selectedOption + 1}`
-                      : "Not answered"}
-                  </p>
-
-                  {!r.isCorrect && (
-                    <>
-                      <p className="text-sm">
-                        ✅ Correct answer: Option {r.correctAnswer + 1}
-                      </p>
-                      <p className="text-sm italic mt-1">
-                        💡 {r.explanation}
-                      </p>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={onClose}
-              className="mt-6 px-5 py-2 bg-indigo-600 text-white rounded"
-            >
-              Close
-            </button>
-          </div>
-        )}
-
-        {/* QUESTIONS */}
-        {!loading && !error && quiz && !result && (
+        {!loading && quiz && !result && (
           <>
             {quiz.questions.map((q, qi) => (
               <div key={qi} className="mb-6">
@@ -193,26 +135,21 @@ const Quiz = ({ lectureId, onClose }) => {
                   Q{qi + 1}. {q.question}
                 </p>
 
-                <div className="space-y-2">
-                  {q.options.map((opt, oi) => (
-                    <label
-                      key={oi}
-                      className="flex items-center gap-2 cursor-pointer"
-                    >
-                      <input
-                        type="radio"
-                        name={`q-${qi}`}
-                        checked={answers.some(
-                          (a) =>
-                            a.questionIndex === qi &&
-                            a.selectedOption === oi
-                        )}
-                        onChange={() => handleSelect(qi, oi)}
-                      />
-                      {opt}
-                    </label>
-                  ))}
-                </div>
+                {q.options.map((opt, oi) => (
+                  <label key={oi} className="flex gap-2 items-center">
+                    <input
+                      type="radio"
+                      name={`q-${qi}`}
+                      checked={answers.some(
+                        (a) =>
+                          a.questionIndex === qi &&
+                          a.selectedOption === oi
+                      )}
+                      onChange={() => handleSelect(qi, oi)}
+                    />
+                    {opt}
+                  </label>
+                ))}
               </div>
             ))}
 
@@ -224,6 +161,26 @@ const Quiz = ({ lectureId, onClose }) => {
               {submitting ? "Submitting..." : "Submit Quiz"}
             </button>
           </>
+        )}
+
+        {result && (
+          <div>
+            <h3 className="text-xl font-bold mb-4">
+              🎯 Score: {result.score} / {result.totalQuestions}
+            </h3>
+
+            {result.results.map((r, i) => (
+              <div key={i} className="mb-3">
+                <p className="font-semibold">{r.question}</p>
+                <p className="text-sm">
+                  {r.isCorrect ? "✅ Correct" : "❌ Incorrect"}
+                </p>
+                {!r.isCorrect && (
+                  <p className="text-sm italic">{r.explanation}</p>
+                )}
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>

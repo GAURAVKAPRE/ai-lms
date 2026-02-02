@@ -6,13 +6,15 @@ const QuizPage = () => {
   const location = useLocation();
   const token = localStorage.getItem("token");
 
-  // ✅ quiz comes from navigation state
+  // ✅ quiz passed from Lecture page via navigation state
   const quiz = location.state?.quiz;
 
   const [answers, setAnswers] = useState([]);
   const [result, setResult] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
+  // 🛑 Safety check
   if (!quiz) {
     return (
       <div className="p-6 text-center">
@@ -28,15 +30,12 @@ const QuizPage = () => {
   }
 
   // ================= SELECT OPTION =================
-  const selectOption = (qIndex, optionIndex) => {
+  const selectOption = (questionIndex, selectedOption) => {
     setAnswers((prev) => {
       const filtered = prev.filter(
-        (a) => a.questionIndex !== qIndex
+        (a) => a.questionIndex !== questionIndex
       );
-      return [
-        ...filtered,
-        { questionIndex: qIndex, selectedOption: optionIndex },
-      ];
+      return [...filtered, { questionIndex, selectedOption }];
     });
   };
 
@@ -49,6 +48,7 @@ const QuizPage = () => {
 
     try {
       setSubmitting(true);
+      setError(null);
 
       const res = await fetch(
         `http://localhost:5000/api/quizzes/submit/${quiz._id}`,
@@ -62,10 +62,14 @@ const QuizPage = () => {
         }
       );
 
+      if (!res.ok) {
+        throw new Error("Quiz submission failed");
+      }
+
       const data = await res.json();
       setResult(data);
     } catch (err) {
-      alert("Quiz submission failed");
+      setError(err.message || "Something went wrong");
     } finally {
       setSubmitting(false);
     }
@@ -83,7 +87,7 @@ const QuizPage = () => {
 
       <h1 className="text-2xl font-bold mb-6">🧠 Quiz</h1>
 
-      {/* QUESTIONS */}
+      {/* ================= QUESTIONS ================= */}
       {!result &&
         quiz.questions.map((q, qi) => (
           <div key={qi} className="mb-6 p-4 border rounded">
@@ -110,7 +114,7 @@ const QuizPage = () => {
           </div>
         ))}
 
-      {/* SUBMIT */}
+      {/* ================= SUBMIT ================= */}
       {!result && (
         <button
           onClick={submitQuiz}
@@ -121,7 +125,11 @@ const QuizPage = () => {
         </button>
       )}
 
-      {/* RESULTS */}
+      {error && (
+        <p className="text-red-600 mt-4">{error}</p>
+      )}
+
+      {/* ================= RESULTS ================= */}
       {result && (
         <div className="mt-6">
           <h2 className="text-xl font-bold mb-4">
@@ -132,13 +140,29 @@ const QuizPage = () => {
             <div
               key={i}
               className={`p-4 mb-3 rounded ${
-                r.isCorrect ? "bg-green-100" : "bg-red-100"
+                r.isCorrect
+                  ? "bg-green-100"
+                  : "bg-red-100"
               }`}
             >
-              <p className="font-semibold">{r.question}</p>
-              <p>Your answer: {r.selectedOption}</p>
-              <p>Correct answer: {r.correctAnswer}</p>
-              <p className="text-sm mt-1">💡 {r.explanation}</p>
+              <p className="font-semibold">
+                {i + 1}. {r.question}
+              </p>
+              <p>
+                <strong>Your answer:</strong>{" "}
+                {r.selectedOption !== null
+                  ? r.selectedOption
+                  : "Not answered"}
+              </p>
+              <p>
+                <strong>Correct answer:</strong>{" "}
+                {r.correctAnswer}
+              </p>
+              {r.explanation && (
+                <p className="text-sm mt-1">
+                  💡 {r.explanation}
+                </p>
+              )}
             </div>
           ))}
         </div>

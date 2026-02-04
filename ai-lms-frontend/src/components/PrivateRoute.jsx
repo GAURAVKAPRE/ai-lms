@@ -12,8 +12,7 @@ const PrivateRoute = ({ children, instructorOnly = false }) => {
   let user;
   try {
     user = JSON.parse(storedUser);
-  } catch (err) {
-    console.error("Invalid user in localStorage", err);
+  } catch {
     localStorage.clear();
     return <Navigate to="/auth" replace />;
   }

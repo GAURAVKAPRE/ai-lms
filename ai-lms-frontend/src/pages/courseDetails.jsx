@@ -10,7 +10,6 @@ const CourseDetail = () => {
   const [course, setCourse] = useState(null);
   const [user, setUser] = useState(null);
   const [lectures, setLectures] = useState([]);
-  const [progressMap, setProgressMap] = useState({});
 
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
@@ -23,7 +22,8 @@ const CourseDetail = () => {
   const [activeQuizLecture, setActiveQuizLecture] = useState(null);
   const [quizLoading, setQuizLoading] = useState(false);
 
-  // 🤖 AI Tutor
+  // 🤖 Ask AI (LECTURE LEVEL)
+  const [activeAiLecture, setActiveAiLecture] = useState(null);
   const [question, setQuestion] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [asking, setAsking] = useState(false);
@@ -61,7 +61,6 @@ const CourseDetail = () => {
     const data = await res.json();
 
     if (!res.ok) {
-      console.warn("Lecture access blocked:", data.message);
       setLectures([]);
       return;
     }
@@ -73,16 +72,13 @@ const CourseDetail = () => {
     fetchCourseAndUser();
   }, [id]);
 
-  // ✅ Correct enrollment check
   const isEnrolled =
     user?.enrolledCourses?.some(
       (cid) => String(cid) === String(course?._id)
     ) || false;
 
   useEffect(() => {
-    if (isEnrolled) {
-      fetchLectures();
-    }
+    if (isEnrolled) fetchLectures();
   }, [isEnrolled]);
 
   // ================= ENROLL =================
@@ -99,22 +95,25 @@ const CourseDetail = () => {
     }
   };
 
-  // ================= ASK AI =================
+  // ================= ASK AI (LECTURE LEVEL) =================
   const handleAskAI = async () => {
-    if (!question.trim()) return;
+    if (!question.trim() || !activeAiLecture) return;
 
     try {
       setAsking(true);
       setAiResponse("");
 
-      const res = await fetch("http://localhost:5000/api/ai/ask", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ courseId: id, question }),
-      });
+      const res = await fetch(
+        `http://localhost:5000/api/ai/ask/${activeAiLecture._id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ question }),
+        }
+      );
 
       const data = await res.json();
       setAiResponse(data.answer);
@@ -147,10 +146,6 @@ const CourseDetail = () => {
         <>
           <h2 className="text-2xl font-semibold mb-4">Lectures</h2>
 
-          {lectures.length === 0 && (
-            <p className="text-gray-500">No lectures available yet.</p>
-          )}
-
           {lectures.map((lec, i) => (
             <div key={lec._id} className="border p-5 mb-4 rounded bg-white">
               <h3 className="font-semibold mb-3">
@@ -179,53 +174,32 @@ const CourseDetail = () => {
                 )}
 
                 {lec.isChunked && (
-                  <button
-                    disabled={quizLoading}
-                    onClick={() => {
-                      if (quizLoading) return;
-                      setQuizLoading(true);
-                      setActiveQuizLecture(lec);
-                    }}
-                    className={`px-4 py-2 rounded text-sm text-white ${
-                      quizLoading
-                        ? "bg-gray-400 cursor-not-allowed"
-                        : "bg-purple-600 hover:bg-purple-700"
-                    }`}
-                  >
-                    {quizLoading ? "Generating Quiz..." : "🧠 Take AI Quiz"}
-                  </button>
+                  <>
+                    <button
+                      onClick={() => {
+                        setQuizLoading(true);
+                        setActiveQuizLecture(lec);
+                      }}
+                      className="px-4 py-2 bg-purple-600 text-white rounded text-sm"
+                    >
+                      🧠 Take AI Quiz
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setActiveAiLecture(lec);
+                        setQuestion("");
+                        setAiResponse("");
+                      }}
+                      className="px-4 py-2 bg-pink-600 text-white rounded text-sm"
+                    >
+                      🤖 Ask AI
+                    </button>
+                  </>
                 )}
               </div>
             </div>
           ))}
-
-          {/* AI TUTOR */}
-          <hr className="my-10" />
-          <h2 className="text-2xl font-semibold mb-2">🤖 Ask AI Tutor</h2>
-
-          <textarea
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            className="w-full border p-3 rounded mb-3"
-            placeholder="Ask doubts from this course..."
-          />
-
-          <button
-            onClick={handleAskAI}
-            disabled={asking}
-            className="px-6 py-2 bg-purple-600 text-white rounded"
-          >
-            {asking ? "Thinking..." : "Ask AI"}
-          </button>
-
-          {aiResponse && (
-            <div className="mt-4 p-4 bg-gray-100 rounded">
-              <strong>AI Response:</strong>
-              <p className="mt-2 text-sm whitespace-pre-wrap">
-                {aiResponse}
-              </p>
-            </div>
-          )}
         </>
       )}
 
@@ -239,7 +213,6 @@ const CourseDetail = () => {
             >
               ✕
             </button>
-
             <video controls autoPlay className="w-full">
               <source src={activeLecture.videoUrl} type="video/mp4" />
             </video>
@@ -256,6 +229,46 @@ const CourseDetail = () => {
             setQuizLoading(false);
           }}
         />
+      )}
+
+      {/* ASK AI MODAL */}
+      {activeAiLecture && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-5 w-full max-w-xl relative">
+            <button
+              onClick={() => setActiveAiLecture(null)}
+              className="absolute top-2 right-3 font-bold"
+            >
+              ✕
+            </button>
+
+            <h3 className="text-xl font-semibold mb-3">
+              🤖 Ask AI — {activeAiLecture.title}
+            </h3>
+
+            <textarea
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              className="w-full border p-3 rounded mb-3"
+              placeholder="Ask a question from this lecture PDF..."
+            />
+
+            <button
+              onClick={handleAskAI}
+              disabled={asking}
+              className="px-6 py-2 bg-purple-600 text-white rounded"
+            >
+              {asking ? "Thinking..." : "Ask AI"}
+            </button>
+
+            {aiResponse && (
+              <div className="mt-4 p-4 bg-gray-100 rounded text-sm whitespace-pre-wrap">
+                <strong>AI Response:</strong>
+                <p className="mt-2">{aiResponse}</p>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

@@ -42,13 +42,24 @@ const Dashboard = () => {
   };
 
   const handleBecomeInstructor = async () => {
-    const token = localStorage.getItem("token");
-    await fetch("http://localhost:5000/api/instructor/enable", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    navigate("/teacher");
-  };
+  const token = localStorage.getItem("token");
+
+  await fetch("http://localhost:5000/api/instructor/enable", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  // 🔁 REFRESH USER DATA
+  const userRes = await fetch("http://localhost:5000/api/auth/me", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  const updatedUser = await userRes.json();
+  setUser(updatedUser);
+
+  navigate("/teacher");
+};
+
 
   if (loading) {
     return (

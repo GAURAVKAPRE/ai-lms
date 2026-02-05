@@ -1,4 +1,4 @@
-import  mongoose from "mongoose";
+import mongoose from "mongoose";
 
 const courseSchema = new mongoose.Schema(
   {
@@ -23,9 +23,18 @@ const courseSchema = new mongoose.Schema(
       default: "Beginner",
     },
 
+    // 💰 Razorpay-related fields
     price: {
       type: Number,
-      default: 0,
+      default: 0, // 0 = free course
+    },
+    currency: {
+      type: String,
+      default: "INR",
+    },
+    isPaid: {
+      type: Boolean,
+      default: false,
     },
 
     instructor: {

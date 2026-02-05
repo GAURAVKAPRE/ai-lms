@@ -15,18 +15,8 @@ const CourseDetail = () => {
   const [enrolling, setEnrolling] = useState(false);
   const [error, setError] = useState("");
 
-  // 🎬 Video modal
   const [activeLecture, setActiveLecture] = useState(null);
-
-  // 🧠 Quiz modal
   const [activeQuizLecture, setActiveQuizLecture] = useState(null);
-  const [quizLoading, setQuizLoading] = useState(false);
-
-  // 🤖 Ask AI (LECTURE LEVEL)
-  const [activeAiLecture, setActiveAiLecture] = useState(null);
-  const [question, setQuestion] = useState("");
-  const [aiResponse, setAiResponse] = useState("");
-  const [asking, setAsking] = useState(false);
 
   // ================= FETCH COURSE + USER =================
   const fetchCourseAndUser = async () => {
@@ -57,15 +47,8 @@ const CourseDetail = () => {
       `http://localhost:5000/api/courses/${id}/lectures`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
-
     const data = await res.json();
-
-    if (!res.ok) {
-      setLectures([]);
-      return;
-    }
-
-    setLectures(Array.isArray(data) ? data : []);
+    if (res.ok) setLectures(Array.isArray(data) ? data : []);
   };
 
   useEffect(() => {
@@ -81,7 +64,7 @@ const CourseDetail = () => {
     if (isEnrolled) fetchLectures();
   }, [isEnrolled]);
 
-  // ================= ENROLL =================
+  // ================= FREE ENROLL =================
   const handleEnroll = async () => {
     try {
       setEnrolling(true);
@@ -95,31 +78,84 @@ const CourseDetail = () => {
     }
   };
 
-  // ================= ASK AI (LECTURE LEVEL) =================
-  const handleAskAI = async () => {
-    if (!question.trim() || !activeAiLecture) return;
-
+  // ================= PAID FLOW =================
+  const handleBuyCourse = async () => {
     try {
-      setAsking(true);
-      setAiResponse("");
-
       const res = await fetch(
-        `http://localhost:5000/api/ai/ask/${activeAiLecture._id}`,
+        "http://localhost:5000/api/payments/create-order",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ question }),
+          body: JSON.stringify({ courseId: course._id }),
         }
       );
 
       const data = await res.json();
-      setAiResponse(data.answer);
-    } finally {
-      setAsking(false);
+      if (!res.ok) {
+        alert(data.message);
+        return;
+      }
+
+      openRazorpayCheckout(data);
+    } catch (err) {
+      alert("Payment initiation failed");
     }
+  };
+
+  // ================= RAZORPAY CHECKOUT =================
+  const openRazorpayCheckout = (orderData) => {
+    const options = {
+      key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+      amount: orderData.amount,
+      currency: orderData.currency,
+      name: "AI LMS",
+      description: "Course Purchase",
+      order_id: orderData.orderId,
+
+      // 🔐 STEP 5: VERIFY PAYMENT
+      handler: async function (response) {
+        try {
+          const verifyRes = await fetch(
+            "http://localhost:5000/api/payments/verify",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              }),
+            }
+          );
+
+          const data = await verifyRes.json();
+
+          if (!verifyRes.ok) {
+            alert(data.message || "Payment verification failed");
+            return;
+          }
+
+          alert("Payment successful! You are now enrolled 🎉");
+          window.location.reload(); // refresh to unlock lectures
+        } catch (err) {
+          console.error(err);
+          alert("Verification error");
+        }
+      },
+
+      theme: {
+        color: "#6366f1",
+      },
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.open();
   };
 
   if (loading) return <div className="text-center mt-20">Loading...</div>;
@@ -134,17 +170,30 @@ const CourseDetail = () => {
       <h1 className="text-3xl font-bold mb-2">{course.title}</h1>
       <p className="text-gray-700 mb-6">{course.description}</p>
 
-      {!isEnrolled ? (
-        <button
-          onClick={handleEnroll}
-          disabled={enrolling}
-          className="px-6 py-3 bg-green-600 text-white rounded"
-        >
-          {enrolling ? "Enrolling..." : "Enroll in Course"}
-        </button>
-      ) : (
+      {!isEnrolled && (
         <>
-          <h2 className="text-2xl font-semibold mb-4">Lectures</h2>
+          {course.price === 0 ? (
+            <button
+              onClick={handleEnroll}
+              disabled={enrolling}
+              className="px-6 py-3 bg-green-600 text-white rounded"
+            >
+              {enrolling ? "Enrolling..." : "Enroll for Free"}
+            </button>
+          ) : (
+            <button
+              onClick={handleBuyCourse}
+              className="px-6 py-3 bg-indigo-600 text-white rounded"
+            >
+              Buy Course ₹{course.price}
+            </button>
+          )}
+        </>
+      )}
+
+      {isEnrolled && (
+        <>
+          <h2 className="text-2xl font-semibold mb-4 mt-6">Lectures</h2>
 
           {lectures.map((lec, i) => (
             <div key={lec._id} className="border p-5 mb-4 rounded bg-white">
@@ -172,31 +221,6 @@ const CourseDetail = () => {
                     📄 View PDF
                   </a>
                 )}
-
-                {lec.isChunked && (
-                  <>
-                    <button
-                      onClick={() => {
-                        setQuizLoading(true);
-                        setActiveQuizLecture(lec);
-                      }}
-                      className="px-4 py-2 bg-purple-600 text-white rounded text-sm"
-                    >
-                      🧠 Take AI Quiz
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setActiveAiLecture(lec);
-                        setQuestion("");
-                        setAiResponse("");
-                      }}
-                      className="px-4 py-2 bg-pink-600 text-white rounded text-sm"
-                    >
-                      🤖 Ask AI
-                    </button>
-                  </>
-                )}
               </div>
             </div>
           ))}
@@ -216,57 +240,6 @@ const CourseDetail = () => {
             <video controls autoPlay className="w-full">
               <source src={activeLecture.videoUrl} type="video/mp4" />
             </video>
-          </div>
-        </div>
-      )}
-
-      {/* QUIZ MODAL */}
-      {activeQuizLecture && (
-        <Quiz
-          lectureId={activeQuizLecture._id}
-          onClose={() => {
-            setActiveQuizLecture(null);
-            setQuizLoading(false);
-          }}
-        />
-      )}
-
-      {/* ASK AI MODAL */}
-      {activeAiLecture && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-5 w-full max-w-xl relative">
-            <button
-              onClick={() => setActiveAiLecture(null)}
-              className="absolute top-2 right-3 font-bold"
-            >
-              ✕
-            </button>
-
-            <h3 className="text-xl font-semibold mb-3">
-              🤖 Ask AI — {activeAiLecture.title}
-            </h3>
-
-            <textarea
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              className="w-full border p-3 rounded mb-3"
-              placeholder="Ask a question from this lecture PDF..."
-            />
-
-            <button
-              onClick={handleAskAI}
-              disabled={asking}
-              className="px-6 py-2 bg-purple-600 text-white rounded"
-            >
-              {asking ? "Thinking..." : "Ask AI"}
-            </button>
-
-            {aiResponse && (
-              <div className="mt-4 p-4 bg-gray-100 rounded text-sm whitespace-pre-wrap">
-                <strong>AI Response:</strong>
-                <p className="mt-2">{aiResponse}</p>
-              </div>
-            )}
           </div>
         </div>
       )}

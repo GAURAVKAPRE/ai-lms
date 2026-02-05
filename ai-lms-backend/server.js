@@ -19,7 +19,7 @@ import aiRoutes from "./routes/aiRoutes.js";
 import quizRoutes from "./routes/quizRoutes.js";
 import quizAttemptRoutes from "./routes/quizAttemptRoutes.js";
 import lectureRoutes from "./routes/lectureRoutes.js";
-
+import paymentRoutes from "./routes/paymentRoutes.js";
 // ================= CONNECT DB =================
 await connectDB();
 
@@ -46,6 +46,8 @@ app.use("/api/ai", aiRoutes);
 
 app.use("/api/quizzes", quizRoutes);
 app.use("/api/quiz-attempts", quizAttemptRoutes);
+
+app.use("/api/payments", paymentRoutes);
 
 // 🔥 Lecture routes
 app.use("/api", lectureRoutes);

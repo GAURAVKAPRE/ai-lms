@@ -7,8 +7,9 @@ import Dashboard from "./pages/Dashboard";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import InstructorCourse from "./pages/InstructorCourse";
 import CourseDetail from "./pages/CourseDetails";
-import QuizPage from "./pages/QuizPage"; // ✅ ADD THIS
+import QuizPage from "./pages/QuizPage";
 import PrivateRoute from "./components/PrivateRoute";
+import MyPayments from "./pages/MyPayments";
 
 import "./app.css";
 
@@ -30,7 +31,17 @@ function App() {
           }
         />
 
-        {/* Course Detail (Lectures + AI Quiz Trigger) */}
+        {/* 🧾 My Payments */}
+        <Route
+          path="/my-payments"
+          element={
+            <PrivateRoute>
+              <MyPayments />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Course Detail */}
         <Route
           path="/courses/:id"
           element={

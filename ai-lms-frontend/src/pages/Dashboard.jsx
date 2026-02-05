@@ -42,24 +42,22 @@ const Dashboard = () => {
   };
 
   const handleBecomeInstructor = async () => {
-  const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token");
 
-  await fetch("http://localhost:5000/api/instructor/enable", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-  });
+    await fetch("http://localhost:5000/api/instructor/enable", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-  // 🔁 REFRESH USER DATA
-  const userRes = await fetch("http://localhost:5000/api/auth/me", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+    const userRes = await fetch("http://localhost:5000/api/auth/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-  const updatedUser = await userRes.json();
-  setUser(updatedUser);
+    const updatedUser = await userRes.json();
+    setUser(updatedUser);
 
-  navigate("/teacher");
-};
-
+    navigate("/teacher");
+  };
 
   if (loading) {
     return (
@@ -81,7 +79,15 @@ const Dashboard = () => {
           <p className="text-gray-600">Welcome, {user.name}</p>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 items-center">
+          {/* 🧾 My Payments */}
+          <button
+            onClick={() => navigate("/my-payments")}
+            className="px-4 py-2 border rounded"
+          >
+            My Payments
+          </button>
+
           <button
             onClick={handleLogout}
             className="px-4 py-2 border rounded"

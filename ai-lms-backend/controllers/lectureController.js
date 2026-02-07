@@ -23,18 +23,16 @@ const createLecture = async (req, res) => {
       });
     }
 
-    // 🔍 Validate course
     const course = await Course.findById(courseId);
     if (!course) {
       return res.status(404).json({ message: "Course not found" });
     }
 
-    // 🔐 Instructor-only access
+    // 🔐 Instructor only
     if (String(course.instructor) !== String(req.user._id)) {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    // ================= PDF TEXT EXTRACTION =================
     let extractedPdfText = "";
     let pdfChunks = [];
     let isChunked = false;
@@ -45,21 +43,12 @@ const createLecture = async (req, res) => {
           responseType: "arraybuffer",
         });
 
-        const contentType = response.headers["content-type"];
-        if (!contentType || !contentType.includes("pdf")) {
-          return res.status(400).json({
-            message: "Uploaded file is not a valid PDF",
-          });
-        }
-
         const parsed = await pdfParse(response.data);
         extractedPdfText = parsed.text?.trim() || "";
 
-        // 🚫 Reject scanned PDFs
         if (!extractedPdfText) {
           return res.status(400).json({
-            message:
-              "PDF text could not be extracted. Please upload a text-based PDF.",
+            message: "Please upload a text-based PDF (not scanned)",
           });
         }
 
@@ -73,7 +62,6 @@ const createLecture = async (req, res) => {
       }
     }
 
-    // ================= SAVE =================
     const lecture = await Lecture.create({
       title,
       description,
@@ -104,21 +92,15 @@ const getLecturesByCourse = async (req, res) => {
       return res.status(404).json({ message: "Course not found" });
     }
 
-    // 👨‍🏫 Instructor can always see lectures
-    if (String(course.instructor) === String(req.user._id)) {
-      const lectures = await Lecture.find({ course: courseId }).sort({
-        order: 1,
-        createdAt: 1,
-      });
-      return res.json(lectures);
-    }
+    const isInstructor =
+      String(course.instructor) === String(req.user._id);
 
-    // 🎓 Student must be enrolled (NOW WORKS because of symmetric enroll fix)
-    const isEnrolled = course.enrolledStudents.some(
-      (uid) => String(uid) === String(req.user._id)
-    );
+    const isEnrolled =
+      req.user.enrolledCourses?.some(
+        (cid) => String(cid) === String(courseId)
+      );
 
-    if (!isEnrolled) {
+    if (!isInstructor && !isEnrolled) {
       return res.status(403).json({
         message: "Enroll to access lectures",
       });
@@ -151,7 +133,6 @@ const updateLecture = async (req, res) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    // 🔄 PDF re-upload
     if (req.files?.pdf?.[0]?.location) {
       try {
         const response = await axios.get(req.files.pdf[0].location, {
@@ -163,8 +144,7 @@ const updateLecture = async (req, res) => {
 
         if (!newText) {
           return res.status(400).json({
-            message:
-              "PDF text could not be extracted. Please upload a text-based PDF.",
+            message: "Please upload a text-based PDF",
           });
         }
 

@@ -21,7 +21,7 @@ const lectureSchema = new mongoose.Schema(
       type: String, // S3 / Cloudinary PDF URL
     },
 
-    // 🔥 Extracted text from PDF (for AI & Quiz)
+    // 🔥 Extracted text from PDF (for AI, Quiz, Summary)
     pdfText: {
       type: String,
       default: "",
@@ -33,7 +33,7 @@ const lectureSchema = new mongoose.Schema(
       default: false,
     },
 
-    // 🧩 NEW: AI-ready text chunks
+    // 🧩 AI-ready text chunks
     pdfChunks: [
       {
         index: {
@@ -51,8 +51,20 @@ const lectureSchema = new mongoose.Schema(
       },
     ],
 
-    // ✅ NEW: tells if chunking is completed
+    // ✅ tells if chunking is completed
     isChunked: {
+      type: Boolean,
+      default: false,
+    },
+
+    // 📘 AI-generated lecture summary
+    summary: {
+      type: String,
+      default: "",
+    },
+
+    // ✅ prevents duplicate AI summary generation
+    isSummaryGenerated: {
       type: Boolean,
       default: false,
     },
@@ -71,8 +83,8 @@ const lectureSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// ✅ CORRECT model creation
+// ✅ Model
 const Lecture = mongoose.model("Lecture", lectureSchema);
 
-// ✅ CORRECT export
+// ✅ Export
 export default Lecture;

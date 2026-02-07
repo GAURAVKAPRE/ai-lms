@@ -1,10 +1,13 @@
 import express from "express";
+
 import {
   createLecture,
   getLecturesByCourse,
   updateLecture,
   deleteLecture,
 } from "../controllers/lectureController.js";
+
+import { getLectureSummary } from "../controllers/lectureSummaryController.js";
 
 import { protect } from "../middlewares/authMiddleware.js";
 import roleMiddleware from "../middlewares/roleMiddleware.js";
@@ -59,6 +62,14 @@ router.delete(
   protect,
   roleMiddleware("instructor"),
   deleteLecture
+);
+
+// ================= 🧠 LECTURE SUMMARY =================
+// GET /api/lectures/:lectureId/summary
+router.get(
+  "/lectures/:lectureId/summary",
+  protect,
+  getLectureSummary
 );
 
 export default router;

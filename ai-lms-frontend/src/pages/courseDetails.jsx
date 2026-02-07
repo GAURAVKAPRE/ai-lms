@@ -15,8 +15,22 @@ const CourseDetail = () => {
   const [enrolling, setEnrolling] = useState(false);
   const [error, setError] = useState("");
 
+  // 🎬 Video
   const [activeLecture, setActiveLecture] = useState(null);
+
+  // 🧠 Quiz
   const [activeQuizLecture, setActiveQuizLecture] = useState(null);
+
+  // 🤖 Ask AI
+  const [activeAiLecture, setActiveAiLecture] = useState(null);
+  const [question, setQuestion] = useState("");
+  const [aiResponse, setAiResponse] = useState("");
+  const [asking, setAsking] = useState(false);
+
+  // 📘 Summary
+  const [activeSummaryLecture, setActiveSummaryLecture] = useState(null);
+  const [lectureSummary, setLectureSummary] = useState("");
+  const [summaryLoading, setSummaryLoading] = useState(false);
 
   // ================= FETCH COURSE + USER =================
   const fetchCourseAndUser = async () => {
@@ -78,7 +92,7 @@ const CourseDetail = () => {
     }
   };
 
-  // ================= PAID FLOW =================
+  // ================= PAID COURSE =================
   const handleBuyCourse = async () => {
     try {
       const res = await fetch(
@@ -100,12 +114,12 @@ const CourseDetail = () => {
       }
 
       openRazorpayCheckout(data);
-    } catch (err) {
+    } catch {
       alert("Payment initiation failed");
     }
   };
 
-  // ================= RAZORPAY CHECKOUT =================
+  // ================= RAZORPAY =================
   const openRazorpayCheckout = (orderData) => {
     const options = {
       key: import.meta.env.VITE_RAZORPAY_KEY_ID,
@@ -115,7 +129,6 @@ const CourseDetail = () => {
       description: "Course Purchase",
       order_id: orderData.orderId,
 
-      // 🔐 STEP 5: VERIFY PAYMENT
       handler: async function (response) {
         try {
           const verifyRes = await fetch(
@@ -135,27 +148,74 @@ const CourseDetail = () => {
           );
 
           const data = await verifyRes.json();
-
           if (!verifyRes.ok) {
             alert(data.message || "Payment verification failed");
             return;
           }
 
-          alert("Payment successful! You are now enrolled 🎉");
-          window.location.reload(); // refresh to unlock lectures
-        } catch (err) {
-          console.error(err);
+          alert("Payment successful! 🎉");
+          window.location.reload();
+        } catch {
           alert("Verification error");
         }
       },
 
-      theme: {
-        color: "#6366f1",
-      },
+      theme: { color: "#6366f1" },
     };
 
     const rzp = new window.Razorpay(options);
     rzp.open();
+  };
+
+  // ================= ASK AI =================
+  const handleAskAI = async () => {
+    if (!question.trim() || !activeAiLecture) return;
+
+    try {
+      setAsking(true);
+      setAiResponse("");
+
+      const res = await fetch(
+        `http://localhost:5000/api/ai/ask/${activeAiLecture._id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ question }),
+        }
+      );
+
+      const data = await res.json();
+      setAiResponse(data.answer);
+    } finally {
+      setAsking(false);
+    }
+  };
+
+  // ================= SUMMARY =================
+  const fetchLectureSummary = async (lecture) => {
+    try {
+      setSummaryLoading(true);
+      setLectureSummary("");
+      setActiveSummaryLecture(lecture);
+
+      const res = await fetch(
+        `http://localhost:5000/api/lectures/${lecture._id}/summary`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.message || "Failed to load summary");
+        return;
+      }
+
+      setLectureSummary(data.summary);
+    } finally {
+      setSummaryLoading(false);
+    }
   };
 
   if (loading) return <div className="text-center mt-20">Loading...</div>;
@@ -170,22 +230,23 @@ const CourseDetail = () => {
       <h1 className="text-3xl font-bold mb-2">{course.title}</h1>
       <p className="text-gray-700 mb-6">{course.description}</p>
 
+      {/* ✅ PAID vs FREE LOGIC */}
       {!isEnrolled && (
         <>
-          {course.price === 0 ? (
+          {Number(course?.price) > 0 ? (
+            <button
+              onClick={handleBuyCourse}
+              className="px-6 py-3 bg-indigo-600 text-white rounded"
+            >
+              Buy Course ₹{course.price}
+            </button>
+          ) : (
             <button
               onClick={handleEnroll}
               disabled={enrolling}
               className="px-6 py-3 bg-green-600 text-white rounded"
             >
               {enrolling ? "Enrolling..." : "Enroll for Free"}
-            </button>
-          ) : (
-            <button
-              onClick={handleBuyCourse}
-              className="px-6 py-3 bg-indigo-600 text-white rounded"
-            >
-              Buy Course ₹{course.price}
             </button>
           )}
         </>
@@ -221,6 +282,35 @@ const CourseDetail = () => {
                     📄 View PDF
                   </a>
                 )}
+
+                {lec.isChunked && (
+                  <>
+                    <button
+                      onClick={() => setActiveQuizLecture(lec)}
+                      className="px-4 py-2 bg-purple-600 text-white rounded text-sm"
+                    >
+                      🧠 Take AI Quiz
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setActiveAiLecture(lec);
+                        setQuestion("");
+                        setAiResponse("");
+                      }}
+                      className="px-4 py-2 bg-pink-600 text-white rounded text-sm"
+                    >
+                      🤖 Ask AI
+                    </button>
+
+                    <button
+                      onClick={() => fetchLectureSummary(lec)}
+                      className="px-4 py-2 bg-yellow-500 text-white rounded text-sm"
+                    >
+                      📘 View Summary
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ))}
@@ -240,6 +330,82 @@ const CourseDetail = () => {
             <video controls autoPlay className="w-full">
               <source src={activeLecture.videoUrl} type="video/mp4" />
             </video>
+          </div>
+        </div>
+      )}
+
+      {/* QUIZ MODAL */}
+      {activeQuizLecture && (
+        <Quiz
+          lectureId={activeQuizLecture._id}
+          onClose={() => setActiveQuizLecture(null)}
+        />
+      )}
+
+      {/* ASK AI MODAL */}
+      {activeAiLecture && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-5 w-full max-w-xl relative">
+            <button
+              onClick={() => setActiveAiLecture(null)}
+              className="absolute top-2 right-3 font-bold"
+            >
+              ✕
+            </button>
+
+            <h3 className="text-xl font-semibold mb-3">
+              🤖 Ask AI — {activeAiLecture.title}
+            </h3>
+
+            <textarea
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              className="w-full border p-3 rounded mb-3"
+              placeholder="Ask a question from this lecture PDF..."
+            />
+
+            <button
+              onClick={handleAskAI}
+              disabled={asking}
+              className="px-6 py-2 bg-purple-600 text-white rounded"
+            >
+              {asking ? "Thinking..." : "Ask AI"}
+            </button>
+
+            {aiResponse && (
+              <div className="mt-4 p-4 bg-gray-100 rounded text-sm whitespace-pre-wrap">
+                {aiResponse}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* SUMMARY MODAL */}
+      {activeSummaryLecture && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl relative">
+            <button
+              onClick={() => {
+                setActiveSummaryLecture(null);
+                setLectureSummary("");
+              }}
+              className="absolute top-2 right-3 font-bold"
+            >
+              ✕
+            </button>
+
+            <h3 className="text-xl font-semibold mb-4">
+              📘 Lecture Summary — {activeSummaryLecture.title}
+            </h3>
+
+            {summaryLoading ? (
+              <p className="text-gray-600">Generating summary...</p>
+            ) : (
+              <div className="text-gray-800 whitespace-pre-wrap text-sm leading-relaxed">
+                {lectureSummary}
+              </div>
+            )}
           </div>
         </div>
       )}
